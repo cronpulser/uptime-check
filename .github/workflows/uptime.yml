@@ -17,7 +17,7 @@ jobs:
           # A URL fails only after 3 failed tries 30 s apart, so a short
           # restart (the mail server needs about a minute after a reboot)
           # does not send an alert.
-          urls="https://api.cronpulser.com/health https://app.cronpulser.com/ https://cronpulser.com/ https://cronpulser.com/uptime-test-404"
+          urls="https://api.cronpulser.com/health https://app.cronpulser.com/ https://cronpulser.com/"
           failed=0
           for url in $urls; do
             ok=0
