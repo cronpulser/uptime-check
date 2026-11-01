@@ -10,22 +10,25 @@ permissions: {}
 jobs:
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - name: Check CronPulser endpoints
         run: |
-          # A URL fails only after 3 failed tries 30 s apart, so a short
+          # A URL fails only after every try fails, 30 s apart, so a short
           # restart (the mail server needs about a minute after a reboot)
-          # does not send an alert.
-          urls="https://api.cronpulser.com/health https://app.cronpulser.com/ https://cronpulser.com/"
+          # does not send an alert. Mail gets 5 tries: one dropped mail
+          # connection keeps /health/smtp at 503 for about a minute.
+          checks="https://api.cronpulser.com/health|3 https://api.cronpulser.com/health/smtp|5 https://app.cronpulser.com/|3 https://cronpulser.com/|3"
           failed=0
-          for url in $urls; do
+          for check in $checks; do
+            url=${check%|*}
+            tries=${check#*|}
             ok=0
-            for try in 1 2 3; do
+            for try in $(seq 1 "$tries"); do
               code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "$url" || true)
               if [ "$code" = "200" ]; then ok=1; break; fi
               echo "$url try $try: HTTP $code"
-              [ "$try" -lt 3 ] && sleep 30
+              [ "$try" -lt "$tries" ] && sleep 30
             done
             if [ "$ok" = 1 ]; then
               echo "OK   $url"
@@ -37,5 +40,7 @@ jobs:
           if [ "$failed" = 1 ]; then
             echo "Health details:"
             curl -s --max-time 15 https://api.cronpulser.com/health || true
+            echo
+            curl -s --max-time 15 https://api.cronpulser.com/health/smtp || true
             exit 1
           fi
